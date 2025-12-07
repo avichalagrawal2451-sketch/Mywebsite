@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/sum-webapp/static/css/main.9431acea.css",
+    "main.js": "/sum-webapp/static/js/main.5b0dbace.js",
+    "index.html": "/sum-webapp/index.html",
+    "main.9431acea.css.map": "/sum-webapp/static/css/main.9431acea.css.map",
+    "main.5b0dbace.js.map": "/sum-webapp/static/js/main.5b0dbace.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.9431acea.css",
+    "static/js/main.5b0dbace.js"
+  ]
+}

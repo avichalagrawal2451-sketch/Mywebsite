@@ -80,6 +80,7 @@ function renderTable() {
 
 expenseForm.addEventListener('submit', (e) => {
   e.preventDefault();
+  const attachments = uploadedFiles.map((file) => ({ ...file }));
   const entry = {
     type: expenseForm.expenseType.value,
     description: expenseForm.description.value.trim(),
@@ -87,13 +88,18 @@ expenseForm.addEventListener('submit', (e) => {
     date: expenseForm.expenseDate.value,
     paymentMode: expenseForm.paymentMode.value,
     receiptAttached: expenseForm.receiptAttached.value,
-    attachmentCount: uploadedFiles.length,
+    attachmentCount: attachments.length,
+    attachments,
   };
   expenses.push(entry);
   renderTable();
+
+  uploadedFiles.length = 0;
+  renderAttachments();
+
   expenseForm.reset();
   expenseForm.expenseDate.valueAsDate = new Date();
-  expenseForm.receiptAttached.value = uploadedFiles.length ? 'Yes' : 'No';
+  expenseForm.receiptAttached.value = 'No';
 });
 
 document.getElementById('clearBtn').addEventListener('click', () => {
@@ -112,6 +118,7 @@ function buildExportRows() {
     Amount: Number(item.amount).toFixed(2),
     'Receipt Attached': item.receiptAttached,
     'Attached Files Count': item.attachmentCount,
+    'Attachment Names': (item.attachments || []).map((file) => file.name).join(', '),
   }));
 }
 
@@ -135,15 +142,22 @@ function exportExcel() {
   const reportSheet = XLSX.utils.json_to_sheet(buildExportRows());
   XLSX.utils.book_append_sheet(wb, reportSheet, 'Expense Report');
 
-  const attachmentRows = uploadedFiles.length
-    ? uploadedFiles.map((file, i) => ({
-        '#': i + 1,
-        Filename: file.name,
-        MIME: file.type,
-        SizeBytes: file.size,
-        DataURL: file.dataUrl,
-        Note: 'DataURL contains encoded file content for merged export.',
-      }))
+  const allAttachments = expenses.flatMap((expense, expenseIndex) =>
+    (expense.attachments || []).map((file, attachmentIndex) => ({
+      '#': attachmentIndex + 1,
+      'Expense #': expenseIndex + 1,
+      'Expense Date': expense.date,
+      'Expense Type': expense.type,
+      Filename: file.name,
+      MIME: file.type,
+      SizeBytes: file.size,
+      DataURL: file.dataUrl,
+      Note: 'DataURL contains encoded file content for merged export.',
+    }))
+  );
+
+  const attachmentRows = allAttachments.length
+    ? allAttachments
     : [{ Note: 'No attachments uploaded.' }];
 
   const attachmentSheet = XLSX.utils.json_to_sheet(attachmentRows);

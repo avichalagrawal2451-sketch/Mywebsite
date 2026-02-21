@@ -136,34 +136,94 @@ function exportCSV() {
 }
 
 function exportExcel() {
+  if (typeof XLSX === 'undefined') {
+    alert('Excel export library is not available. Please refresh and try again.');
+    return;
+  }
   if (!expenses.length) return alert('Add at least one expense to export.');
   const wb = XLSX.utils.book_new();
 
   const reportSheet = XLSX.utils.json_to_sheet(buildExportRows());
   XLSX.utils.book_append_sheet(wb, reportSheet, 'Expense Report');
 
-  const allAttachments = expenses.flatMap((expense, expenseIndex) =>
-    (expense.attachments || []).map((file, attachmentIndex) => ({
-      '#': attachmentIndex + 1,
-      'Expense #': expenseIndex + 1,
-      'Expense Date': expense.date,
-      'Expense Type': expense.type,
-      Filename: file.name,
-      MIME: file.type,
-      SizeBytes: file.size,
-      DataURL: file.dataUrl,
-      Note: 'DataURL contains encoded file content for merged export.',
-    }))
+  const attachments = expenses.flatMap((expense, expenseIndex) =>
+    (expense.attachments || []).map((file, attachmentIndex) => {
+      const [header, base64 = ''] = String(file.dataUrl || '').split(',');
+      return {
+        expenseIndex,
+        attachmentIndex,
+        expense,
+        file,
+        mimeHeader: header,
+        base64,
+      };
+    })
   );
 
-  const attachmentRows = allAttachments.length
-    ? allAttachments
+  const usedSheetNames = new Set(['Expense Report', 'Attachments']);
+  const makeSheetName = (expenseIndex, attachmentIndex, fileName) => {
+    const normalized = String(fileName || 'Attachment').replace(/[\\/?*\[\]:]/g, ' ').replace(/\s+/g, ' ').trim();
+    const prefix = `E${expenseIndex + 1}-A${attachmentIndex + 1}`;
+    const maxBaseLength = 31 - prefix.length - 1;
+    const trimmed = normalized.slice(0, Math.max(1, maxBaseLength));
+    let name = `${prefix}-${trimmed}`;
+    let duplicateCounter = 1;
+    while (usedSheetNames.has(name)) {
+      const suffix = `-${duplicateCounter++}`;
+      name = `${prefix}-${trimmed}`.slice(0, 31 - suffix.length) + suffix;
+    }
+    usedSheetNames.add(name);
+    return name;
+  };
+
+  const chunkBase64 = (value, size = 30000) => {
+    const chunks = [];
+    for (let i = 0; i < value.length; i += size) {
+      chunks.push(value.slice(i, i + size));
+    }
+    return chunks.length ? chunks : [''];
+  };
+
+  const attachmentRows = attachments.length
+    ? attachments.map((item) => {
+      const sheetName = makeSheetName(item.expenseIndex, item.attachmentIndex, item.file.name);
+      const detailRows = [
+        { Field: 'Filename', Value: item.file.name },
+        { Field: 'MIME Type', Value: item.file.type || 'application/octet-stream' },
+        { Field: 'Size (Bytes)', Value: item.file.size },
+        { Field: 'Expense #', Value: item.expenseIndex + 1 },
+        { Field: 'Expense Date', Value: item.expense.date },
+        { Field: 'Expense Type', Value: item.expense.type },
+        { Field: 'Data URL Header', Value: item.mimeHeader },
+        { Field: 'Base64 Chunks', Value: chunkBase64(item.base64).length },
+        { Field: 'How to rebuild', Value: 'Join all Base64 chunks in this sheet and prepend Data URL Header + comma.' },
+      ];
+      const detailSheet = XLSX.utils.json_to_sheet(detailRows);
+      XLSX.utils.book_append_sheet(wb, detailSheet, sheetName);
+      const chunks = chunkBase64(item.base64);
+      XLSX.utils.sheet_add_json(
+        detailSheet,
+        chunks.map((chunk, i) => ({ 'Chunk #': i + 1, Base64: chunk })),
+        { origin: 'A12' }
+      );
+
+      return {
+        '#': item.attachmentIndex + 1,
+        'Expense #': item.expenseIndex + 1,
+        'Expense Date': item.expense.date,
+        'Expense Type': item.expense.type,
+        Filename: item.file.name,
+        MIME: item.file.type,
+        SizeBytes: item.file.size,
+        'Stored In Sheet': sheetName,
+      };
+    })
     : [{ Note: 'No attachments uploaded.' }];
 
   const attachmentSheet = XLSX.utils.json_to_sheet(attachmentRows);
   XLSX.utils.book_append_sheet(wb, attachmentSheet, 'Attachments');
 
-  XLSX.writeFile(wb, 'expense-report-merged.xlsx');
+  XLSX.writeFile(wb, 'expense-report-merged.xlsx', { compression: true });
 }
 
 function exportPDF() {

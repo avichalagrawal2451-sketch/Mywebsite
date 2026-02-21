@@ -1,0 +1,103 @@
+:root {
+  --bg: #eef0f3;
+  --panel: #f8f9fb;
+  --border: #d9dde3;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --primary: #2f57d6;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Inter, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+.page { max-width: 1160px; margin: 0 auto; padding: 18px; }
+.header h1 { margin: 0; font-size: 2rem; }
+.header p { margin: 6px 0 18px; color: var(--muted); }
+.layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 20px;
+}
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+}
+h2 { font-size: 1.3rem; margin: 0 0 12px; }
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #c8ccd2;
+  border-radius: 8px;
+  min-height: 145px;
+  text-align: center;
+  color: var(--muted);
+  cursor: pointer;
+  margin-bottom: 14px;
+}
+.dropzone.dragging { border-color: var(--primary); background: #edf2ff; }
+.dropzone-icon { font-size: 2rem; }
+.attachment-list {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  max-height: 130px;
+  overflow: auto;
+}
+.attachment-list li {
+  font-size: 0.85rem;
+  padding: 4px 0;
+  border-bottom: 1px solid #e8ebef;
+}
+.export-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+button, input, select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #cfd4dc;
+  border-radius: 6px;
+  font: inherit;
+  background: white;
+}
+label {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+}
+label > input, label > select { margin-top: 6px; }
+.row { display: grid; gap: 12px; }
+.two-cols { grid-template-columns: 1fr 1fr; }
+.primary {
+  margin-top: 8px;
+  background: var(--primary);
+  color: #fff;
+  border: 0;
+  font-weight: 700;
+}
+.secondary {
+  margin-top: 8px;
+  background: #f2f4f8;
+  font-weight: 600;
+}
+.table-wrap { margin-top: 18px; }
+#expenseTable { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+#expenseTable th, #expenseTable td {
+  border: 1px solid #dee2e8;
+  padding: 6px;
+  text-align: left;
+}
+#expenseTable th { background: #eef2f7; }
+.total { text-align: right; font-weight: 700; }
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .two-cols { grid-template-columns: 1fr; }
+}

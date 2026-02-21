@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Report Creator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --accent: #f59e0b;
+            --success: #10b981;
+            --error: #ef4444;
+            --bg-light: #f9fafb;
+            --bg-white: #ffffff;
+            --border: #e5e7eb;
+            --text-dark: #1f2937;
+            --text-muted: #6b7280;
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+            color: var(--text-dark);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 900px; margin: 0 auto; }
+
+        header {
+            text-align: center;
+            margin-bottom: 36px;
+            animation: slideDown 0.6s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+
+        .subtitle { color: var(--text-muted); font-size: 1rem; }
+
+        .panel {
+            background: var(--bg-white);
+            border-radius: 12px;
+            padding: 28px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border);
+            margin-bottom: 24px;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .panel-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--text-dark);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-icon {
+            width: 26px;
+            height: 26px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.8rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group.full { grid-column: 1 / -1; }
+
+        label {
+            font-weight: 500;
+            font-size: 0.88rem;
+            color: var(--text-dark);
+        }
+
+        input, select {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            color: var(--text-dark);
+            transition: all 0.2s ease;
+            background: var(--bg-white);
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        /* Receipt upload area — shown conditionally */
+        .receipt-upload-area {
+            display: none;
+            margin-top: 4px;
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+            background: var(--bg-light);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .receipt-upload-area:hover {
+            border-color: var(--primary);
+            background: rgba(37,99,235,0.04);
+            color: var(--primary);
+        }
+
+        .receipt-upload-area.has-file {
+            border-color: var(--success);
+            background: rgba(16,185,129,0.06);
+            color: var(--success);
+        }
+
+        .receipt-upload-area.full { grid-column: 1 / -1; }
+
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 11px 20px;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Syne', sans-serif;
+            font-weight: 600;
+            font-size: 0.92rem;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(37,99,235,0.3);
+        }
+
+        .btn-secondary {
+            background: var(--bg-light);
+            color: var(--text-dark);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover { background: var(--border); }
+
+        .btn-export {
+            background: linear-gradient(135deg, #16a34a, #15803d);
+            color: white;
+            padding: 13px 28px;
+            font-size: 1rem;
+            border-radius: 10px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn-export:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(22,163,74,0.35);
+        }
+
+        .btn-export:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Expense table */
+        .table-wrap {
+            overflow-x: auto;
+            margin-top: 4px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+
+        thead {
+            background: linear-gradient(135deg, rgba(37,99,235,0.07), rgba(245,158,11,0.07));
+        }
+
+        th {
+            padding: 12px 14px;
+            text-align: left;
+            font-weight: 600;
+            font-family: 'Syne', sans-serif;
+            color: var(--text-dark);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 11px 14px;
+            border-top: 1px solid var(--border);
+            color: var(--text-dark);
+            vertical-align: middle;
+        }
+
+        tbody tr:hover { background: var(--bg-light); }
+
+        .receipt-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 99px;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+
+        .receipt-badge.yes {
+            background: rgba(16,185,129,0.12);
+            color: #059669;
+        }
+
+        .receipt-badge.no {
+            background: rgba(107,114,128,0.12);
+            color: var(--text-muted);
+        }
+
+        .btn-del {
+            background: rgba(239,68,68,0.1);
+            color: #dc2626;
+            padding: 5px 10px;
+            font-size: 0.78rem;
+            border-radius: 6px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+        }
+
+        .btn-del:hover { background: rgba(239,68,68,0.2); }
+
+        .empty-state {
+            text-align: center;
+            padding: 36px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state .icon { font-size: 2.8rem; margin-bottom: 10px; }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-top: 20px;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 10px;
+            padding: 16px 18px;
+            color: white;
+        }
+
+        .summary-card .s-label {
+            font-size: 0.78rem;
+            opacity: 0.85;
+            margin-bottom: 6px;
+        }
+
+        .summary-card .s-value {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 13px 20px;
+            border-radius: 10px;
+            color: white;
+            font-size: 0.9rem;
+            box-shadow: var(--shadow-lg);
+            z-index: 9999;
+            animation: slideInUp 0.3s ease-out;
+        }
+
+        @keyframes slideInUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--error); }
+
+        @media (max-width: 640px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .form-group.full { grid-column: 1; }
+            .receipt-upload-area.full { grid-column: 1; }
+            .summary-grid { grid-template-columns: 1fr; }
+            h1 { font-size: 1.6rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <header>
+        <h1>💼 Expense Report Creator</h1>
+        <p class="subtitle">Add expenses, attach receipts, and export to Excel</p>
+    </header>
+
+    <!-- Add Expense Form -->
+    <div class="panel">
+        <div class="panel-title">
+            <span class="section-icon">✏️</span> Add Expense
+        </div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="expenseType">Expense Type *</label>
+                <select id="expenseType">
+                    <option value="">Select Type</option>
+                    <option value="Travel">Travel</option>
+                    <option value="Meals">Meals</option>
+                    <option value="Accommodation">Accommodation</option>
+                    <option value="Transport">Transport</option>
+                    <option value="Office Supplies">Office Supplies</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="expenseDate">Date *</label>
+                <input type="date" id="expenseDate">
+            </div>
+
+            <div class="form-group full">
+                <label for="description">Description *</label>
+                <input type="text" id="description" placeholder="e.g., Client dinner at Italian restaurant">
+            </div>
+
+            <div class="form-group">
+                <label for="amount">Amount (₹) *</label>
+                <input type="number" id="amount" placeholder="0.00" min="0" step="0.01">
+            </div>
+
+            <div class="form-group">
+                <label for="paymentMode">Payment Mode</label>
+                <select id="paymentMode">
+                    <option value="Cash">Cash</option>
+                    <option value="Card">Card</option>
+                    <option value="UPI">UPI</option>
+                    <option value="Cheque">Cheque</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="receiptYN">Receipt Attached?</label>
+                <select id="receiptYN" onchange="toggleReceiptUpload(this.value)">
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="approvalRequired">Approval Required?</label>
+                <select id="approvalRequired">
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                </select>
+            </div>
+
+            <!-- Hidden file input -->
+            <input type="file" id="receiptFileInput" style="display:none" accept="image/*,.pdf,.doc,.docx" onchange="handleReceiptFile()">
+
+            <!-- Upload trigger — shown only when receipt = Yes -->
+            <div class="receipt-upload-area full" id="receiptUploadArea" onclick="document.getElementById('receiptFileInput').click()">
+                📎 Click to attach receipt (image, PDF, doc)
+            </div>
+        </div>
+
+        <div class="btn-row">
+            <button class="btn-primary" onclick="addExpense()">+ Add Expense</button>
+            <button class="btn-secondary" onclick="clearForm()">Clear</button>
+        </div>
+    </div>
+
+    <!-- Expense Table -->
+    <div class="panel" id="tablePanel" style="display:none">
+        <div class="panel-title">
+            <span class="section-icon">📋</span> Expenses
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th>Amount (₹)</th>
+                        <th>Date</th>
+                        <th>Mode</th>
+                        <th>Receipt</th>
+                        <th>Approval</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="expenseBody"></tbody>
+            </table>
+        </div>
+
+        <div class="summary-grid" id="summaryGrid"></div>
+
+        <div style="margin-top: 24px;">
+            <button class="btn-export" onclick="exportToExcel()">📊 Export Report (Excel + Receipts)</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    let expenses = [];
+    let currentReceiptFile = null; // { name, type, size, dataUrl }
+
+    document.getElementById('expenseDate').valueAsDate = new Date();
+
+    function toggleReceiptUpload(val) {
+        const area = document.getElementById('receiptUploadArea');
+        const fileInput = document.getElementById('receiptFileInput');
+        if (val === 'Yes') {
+            area.style.display = 'block';
+        } else {
+            area.style.display = 'none';
+            area.textContent = '📎 Click to attach receipt (image, PDF, doc)';
+            area.classList.remove('has-file');
+            fileInput.value = '';
+            currentReceiptFile = null;
+        }
+    }
+
+    function handleReceiptFile() {
+        const file = document.getElementById('receiptFileInput').files[0];
+        if (!file) return;
+
+        // Read as ArrayBuffer for binary-accurate embedding
+        const bufReader = new FileReader();
+        bufReader.onload = function(e) {
+            currentReceiptFile = {
+                name: file.name,
+                type: file.type || 'application/octet-stream',
+                size: file.size,
+                buffer: e.target.result   // ArrayBuffer — exact binary bytes
+            };
+            const area = document.getElementById('receiptUploadArea');
+            area.textContent = `✅ ${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+            area.classList.add('has-file');
+            showToast(`Receipt "${file.name}" attached.`, 'success');
+        };
+        bufReader.readAsArrayBuffer(file);
+    }
+
+    function addExpense() {
+        const type = document.getElementById('expenseType').value.trim();
+        const description = document.getElementById('description').value.trim();
+        const amountStr = document.getElementById('amount').value.trim();
+        const date = document.getElementById('expenseDate').value;
+        const mode = document.getElementById('paymentMode').value;
+        const receiptYN = document.getElementById('receiptYN').value;
+        const approvalRequired = document.getElementById('approvalRequired').value;
+
+        if (!type) { showToast('Please select an expense type', 'error'); return; }
+        if (!description) { showToast('Please enter a description', 'error'); return; }
+        if (!amountStr) { showToast('Please enter an amount', 'error'); return; }
+        if (!date) { showToast('Please select a date', 'error'); return; }
+
+        const amount = parseFloat(amountStr);
+        if (isNaN(amount) || amount <= 0) { showToast('Please enter a valid amount', 'error'); return; }
+
+        if (receiptYN === 'Yes' && !currentReceiptFile) {
+            showToast('Please attach a receipt file or select No', 'error'); return;
+        }
+
+        expenses.push({
+            id: Date.now(),
+            type, description, amount, date, mode,
+            receiptYN,
+            receipt: currentReceiptFile ? { ...currentReceiptFile } : null,
+            approvalRequired
+        });
+
+        renderTable();
+        clearForm();
+        showToast('✅ Expense added!', 'success');
+    }
+
+    function renderTable() {
+        const body = document.getElementById('expenseBody');
+        const panel = document.getElementById('tablePanel');
+
+        if (expenses.length === 0) { panel.style.display = 'none'; return; }
+        panel.style.display = 'block';
+
+        body.innerHTML = expenses.map((e, i) => `
+            <tr>
+                <td style="color:var(--text-muted)">${i + 1}</td>
+                <td><strong>${e.type}</strong></td>
+                <td>${e.description}</td>
+                <td>₹${e.amount.toFixed(2)}</td>
+                <td>${new Date(e.date).toLocaleDateString('en-IN')}</td>
+                <td>${e.mode}</td>
+                <td>
+                    ${e.receiptYN === 'Yes'
+                        ? `<span class="receipt-badge yes">✅ ${e.receipt ? e.receipt.name : 'Attached'}</span>`
+                        : `<span class="receipt-badge no">— None</span>`}
+                </td>
+                <td>
+                    <span class="receipt-badge ${e.approvalRequired === 'Yes' ? 'yes' : 'no'}">
+                        ${e.approvalRequired === 'Yes' ? '⏳ Yes' : '— No'}
+                    </span>
+                </td>
+                <td><button class="btn-del" onclick="deleteExpense(${e.id})">Delete</button></td>
+            </tr>
+        `).join('');
+
+        updateSummary();
+    }
+
+    function deleteExpense(id) {
+        expenses = expenses.filter(e => e.id !== id);
+        renderTable();
+        showToast('Expense deleted', 'success');
+    }
+
+    function updateSummary() {
+        const total = expenses.reduce((s, e) => s + e.amount, 0);
+        const avg = total / expenses.length;
+        const withReceipts = expenses.filter(e => e.receiptYN === 'Yes').length;
+
+        document.getElementById('summaryGrid').innerHTML = `
+            <div class="summary-card">
+                <div class="s-label">Total Amount</div>
+                <div class="s-value">₹${total.toFixed(2)}</div>
+            </div>
+            <div class="summary-card">
+                <div class="s-label">Expenses</div>
+                <div class="s-value">${expenses.length}</div>
+            </div>
+            <div class="summary-card">
+                <div class="s-label">With Receipts</div>
+                <div class="s-value">${withReceipts}</div>
+            </div>
+        `;
+    }
+
+    function clearForm() {
+        document.getElementById('expenseType').value = '';
+        document.getElementById('description').value = '';
+        document.getElementById('amount').value = '';
+        document.getElementById('expenseDate').valueAsDate = new Date();
+        document.getElementById('paymentMode').value = 'Cash';
+        document.getElementById('receiptYN').value = 'No';
+        document.getElementById('approvalRequired').value = 'No';
+        document.getElementById('receiptFileInput').value = '';
+        const area = document.getElementById('receiptUploadArea');
+        area.style.display = 'none';
+        area.textContent = '📎 Click to attach receipt (image, PDF, doc)';
+        area.classList.remove('has-file');
+        currentReceiptFile = null;
+    }
+
+    async function exportToExcel() {
+        if (expenses.length === 0) { showToast('No expenses to export', 'error'); return; }
+        if (typeof XLSX === 'undefined') { showToast('Excel library not loaded. Refresh and try again.', 'error'); return; }
+
+        const hasReceipts = expenses.some(e => e.receiptYN === 'Yes' && e.receipt);
+
+        showToast('Generating export...', 'success');
+
+        try {
+            const wb = XLSX.utils.book_new();
+            const dateStr = new Date().toLocaleDateString('en-IN');
+            const total = expenses.reduce((s, e) => s + e.amount, 0);
+
+            // ── Sheet 1: Expense Report ──────────────────────────────────────
+            const rows = [
+                ['EXPENSE REPORT'],
+                ['Generated on', dateStr],
+                [],
+                ['#', 'Type', 'Description', 'Amount (₹)', 'Date', 'Payment Mode', 'Receipt', 'Receipt File', 'Approval Required']
+            ];
+
+            expenses.forEach((e, i) => {
+                rows.push([
+                    i + 1,
+                    e.type,
+                    e.description,
+                    e.amount,
+                    new Date(e.date).toLocaleDateString('en-IN'),
+                    e.mode,
+                    e.receiptYN,
+                    e.receipt ? `receipts/${e.receipt.name}` : '—',
+                    e.approvalRequired
+                ]);
+            });
+
+            rows.push([]);
+            rows.push(['', '', 'TOTAL', total, '', '', '', '']);
+
+            if (hasReceipts) {
+                rows.push([]);
+                rows.push(['NOTE', 'Receipt files are in the "receipts/" folder inside the downloaded ZIP.']);
+            }
+
+            const ws1 = XLSX.utils.aoa_to_sheet(rows);
+            ws1['!cols'] = [
+                { wch: 4 }, { wch: 16 }, { wch: 32 }, { wch: 12 },
+                { wch: 14 }, { wch: 14 }, { wch: 8 }, { wch: 36 }, { wch: 18 }
+            ];
+            XLSX.utils.book_append_sheet(wb, ws1, 'Expense Report');
+
+            // ── Write workbook to binary ─────────────────────────────────────
+            const xlsxBinary = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+
+            if (!hasReceipts) {
+                // No receipts — just download the Excel directly
+                const blob = new Blob([xlsxBinary], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Expense_Report_${dateStr.replace(/\//g, '-')}.xlsx`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast('✅ Excel exported!', 'success');
+                return;
+            }
+
+            // ── Bundle into ZIP with receipts folder ─────────────────────────
+            const zip = new JSZip();
+            const folderName = `Expense_Report_${dateStr.replace(/\//g, '-')}`;
+            const folder = zip.folder(folderName);
+
+            // Add Excel file
+            folder.file('Expense_Report.xlsx', xlsxBinary);
+
+            // Add each receipt as actual binary file
+            const receiptsFolder = folder.folder('receipts');
+            let receiptCount = 0;
+            expenses.forEach(e => {
+                if (e.receiptYN !== 'Yes' || !e.receipt) return;
+                receiptCount++;
+                receiptsFolder.file(e.receipt.name, e.receipt.buffer);
+            });
+
+            // Generate and download ZIP
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            const zipUrl = URL.createObjectURL(zipBlob);
+            const a = document.createElement('a');
+            a.href = zipUrl;
+            a.download = `${folderName}.zip`;
+            a.click();
+            URL.revokeObjectURL(zipUrl);
+
+            showToast(`✅ Downloaded ZIP with Excel + ${receiptCount} receipt file(s)!`, 'success');
+
+        } catch (err) {
+            console.error(err);
+            showToast('Error: ' + err.message, 'error');
+        }
+    }
+
+    function showToast(msg, type = 'success') {
+        const t = document.createElement('div');
+        t.className = `toast ${type}`;
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 3200);
+    }
+</script>
+</body>
+</html>
